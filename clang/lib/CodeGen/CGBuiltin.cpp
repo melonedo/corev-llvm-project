@@ -19354,6 +19354,17 @@ Value *CodeGenFunction::EmitHexagonBuiltinExpr(unsigned BuiltinID,
   return nullptr;
 }
 
+static Value *EmitCoreVIntrinsic(CodeGenFunction &CGF, unsigned IntrinsicID, MutableArrayRef<Value *> Ops) {
+  llvm::Type *MachineType = llvm::IntegerType::getInt32Ty(CGF.CGM.getLLVMContext());
+  for (Value *&Op : Ops) {
+    if (Op->getType() != MachineType) {
+      Op = CGF.Builder.CreateZExt(Op, MachineType);
+    }
+  }
+  llvm::Function *F = CGF.CGM.getIntrinsic(IntrinsicID);
+  return CGF.Builder.CreateCall(F, Ops);
+}
+
 Value *CodeGenFunction::EmitRISCVBuiltinExpr(unsigned BuiltinID,
                                              const CallExpr *E,
                                              ReturnValueSlot ReturnValue) {
@@ -19575,6 +19586,13 @@ Value *CodeGenFunction::EmitRISCVBuiltinExpr(unsigned BuiltinID,
     ID = Intrinsic::riscv_sm3p1;
     IntrinsicTypes = {ResultType};
     break;
+  
+  // CoreV
+#define BUILTIN(NAME, TYPE, ATTRS)              \
+  case RISCVCOREV::BI__builtin_riscv_cv_##NAME: \
+    ID = Intrinsic::riscv_cv_##NAME;            \
+    return EmitCoreVIntrinsic(*this, ID, Ops);
+#include "clang/Basic/BuiltinsRISCVCOREV.def"
 
   // Vector builtins are handled from here.
 #include "clang/Basic/riscv_vector_builtin_cg.inc"

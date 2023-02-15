@@ -69,6 +69,19 @@ def cv_uimm12 : Operand<XLenVT>,
   let OperandNamespace = "RISCVOp";
 }
 
+def cv_tsimm6 : Operand<XLenVT>, TImmLeaf<XLenVT, [{return isInt<6>(Imm);}]> {
+  let ParserMatchClass = SImmAsmOperand<6>;
+  let EncoderMethod = "getImmOpValue";
+  let DecoderMethod = "decodeSImmOperand<6>";
+  let OperandType = "OPERAND_SIMM6";
+  let OperandNamespace = "RISCVOp";
+  let MCOperandPredicate = [{
+    int64_t Imm;
+    if (MCOp.evaluateAsConstantImm(Imm))
+      return isInt<6>(Imm);
+    return MCOp.isBareSymbolRef();
+  }];
+}
 
 //===----------------------------------------------------------------------===//
 // CORE-V specific instructions
@@ -206,8 +219,12 @@ let Predicates = [HasExtXcvsimd], hasSideEffects = 0, mayLoad = 0, mayStore = 0 
   def CV_EXTRACT_B :    CVSIMDALUri<0b10111, 0, 0b001, "cv.extract.b">;
   def CV_EXTRACTU_H :   CVSIMDALUri<0b10111, 0, 0b010, "cv.extractu.h">;
   def CV_EXTRACTU_B :   CVSIMDALUri<0b10111, 0, 0b011, "cv.extractu.b">;
-  def CV_INSERT_H :   CVSIMDALUri<0b10111, 0, 0b100, "cv.insert.h">;
-  def CV_INSERT_B :   CVSIMDALUri<0b10111, 0, 0b101, "cv.insert.b">;
+  let Constraints = "$rd = $rd_wb" in {
+    def CV_INSERT_H : CVInstSIMDRI<0b10111, 0, 0b100, OPC_CUSTOM3, (outs GPR:$rd_wb),
+      (ins GPR:$rd, GPR:$rs1, cv_tsimm6:$imm6), "cv.insert.h", "$rd, $rs1, $imm6">;
+    def CV_INSERT_B : CVInstSIMDRI<0b10111, 0, 0b101, OPC_CUSTOM3, (outs GPR:$rd_wb),
+      (ins GPR:$rd, GPR:$rs1, cv_tsimm6:$imm6), "cv.insert.b", "$rd, $rs1, $imm6">;
+  }
 
   def CV_SHUFFLE_H :    CVSIMDALUrr<0b11000, 0, 0, 0b000, "cv.shuffle.h">;
   def CV_SHUFFLE_B :    CVSIMDALUrr<0b11000, 0, 0, 0b001, "cv.shuffle.b">;
@@ -228,8 +245,12 @@ let Predicates = [HasExtXcvsimd], hasSideEffects = 0, mayLoad = 0, mayStore = 0 
   def CV_PACK :      CVSIMDALUrr<0b11110, 0, 0, 0b000, "cv.pack">;
   def CV_PACK_H :    CVSIMDALUrr<0b11110, 0, 1, 0b000, "cv.pack.h">;
   
-  def CV_PACKHI_B :    CVSIMDALUrr<0b11111, 0, 1, 0b001, "cv.packhi.b">;
-  def CV_PACKLO_B :    CVSIMDALUrr<0b11111, 0, 0, 0b001, "cv.packlo.b">;
+  let Constraints = "$rd = $rd_wb" in {
+    def CV_PACKHI_B : CVInstSIMDRR<0b11111, 0, 1, 0b001, OPC_CUSTOM3, (outs GPR:$rd_wb),
+      (ins GPR:$rd, GPR:$rs1, GPR:$rs2), "cv.packhi.b", "$rd, $rs1, $rs2">;
+    def CV_PACKLO_B : CVInstSIMDRR<0b11111, 0, 0, 0b001, OPC_CUSTOM3, (outs GPR:$rd_wb),
+      (ins GPR:$rd, GPR:$rs1, GPR:$rs2), "cv.packlo.b", "$rd, $rs1, $rs2">;
+  }
   
   defm CMPEQ : CVSIMDBinarySigned<0b00000, 1, 0, "cmpeq">;
   defm CMPNE :  CVSIMDBinarySigned<0b00001, 1, 0, "cmpne">;
@@ -772,6 +793,163 @@ let Predicates = [HasExtXCoreVMem] in {
   def : Pat<(store GPR:$val, (AddrRegReg GPR:$base, GPR:$offset)),
             (CV_SW_rr GPR:$val, GPR:$base, GPR:$offset)>;
 
+}
+
+//===----------------------------------------------------------------------===//
+// Patterns for SIMD operations
+//===----------------------------------------------------------------------===//
+
+class PatCorevGprGpr <string intr, string asm> :
+  PatGprGpr<!cast<Intrinsic>("int_riscv_cv_simd_" # intr), 
+            !cast<RVInst>("CV_" # asm)>;
+
+class PatCorevGprTImm <string intr, string asm> :
+  PatGprImm<!cast<Intrinsic>("int_riscv_cv_simd_" # intr), 
+            !cast<RVInst>("CV_" # asm), cv_tsimm6>;
+
+class PatCorevGprImm <string intr, string asm> :
+  PatGprImm<!cast<Intrinsic>("int_riscv_cv_simd_" # intr), 
+            !cast<RVInst>("CV_" # asm), simm6>;
+
+// TODO: define uimm6
+class PatCorevGprUImm <string intr, string asm> :
+  PatGprImm<!cast<Intrinsic>("int_riscv_cv_simd_" # intr), 
+            !cast<RVInst>("CV_" # asm), simm6>;
+
+multiclass PatCorevGprGprHB <string intr> {
+  def : PatCorevGprGpr<intr # "_h", NAME # "_H">;
+  def : PatCorevGprGpr<intr # "_b", NAME # "_B">;
+}
+
+multiclass PatCorevGprTImmHB <string intr> {
+  def : PatCorevGprTImm<intr # "_h", NAME # "_H">;
+  def : PatCorevGprTImm<intr # "_b", NAME # "_B">;
+}
+
+multiclass PatCorevGprImmHB <string intr> {
+  def : PatCorevGprImm<intr # "_h", NAME # "_H">;
+  def : PatCorevGprImm<intr # "_b", NAME # "_B">;
+}
+
+multiclass PatCorevGprUImmHB <string intr> {
+  def : PatCorevGprUImm<intr # "_h", NAME # "_H">;
+  def : PatCorevGprUImm<intr # "_b", NAME # "_B">;
+}
+
+class PatCorevGprGprDiv <Intrinsic intr, string asm, int div> : 
+  Pat<(intr GPR:$rd, GPR:$rs1, (i32 div)),
+      (!cast<RVInst>("CV_" # asm) GPR:$rd, GPR:$rs1)>;
+
+multiclass PatCorevGprGprDivAll <string intr> {
+  def : PatCorevGprGpr<intr # "_div2", NAME # "_DIV2">;
+  def : PatCorevGprGpr<intr # "_div4", NAME # "_DIV4">;
+  def : PatCorevGprGpr<intr # "_div8", NAME # "_DIV8">;
+}
+
+multiclass PatCorevGprGprDivAll2 <Intrinsic intr> {
+  def : PatCorevGprGprDiv<intr, NAME # "_DIV2", 2>;
+  def : PatCorevGprGprDiv<intr, NAME # "_DIV4", 4>;
+  def : PatCorevGprGprDiv<intr, NAME # "_DIV8", 8>;
+}
+
+class PatCorevGpr <string intr, string asm> :
+  PatGpr<!cast<Intrinsic>("int_riscv_cv_simd_" # intr), 
+            !cast<RVInst>("CV_" # asm)>;
+
+multiclass PatCorevGprHB <string intr> {
+  def : PatCorevGpr<intr # "_h", NAME # "_H">;
+  def : PatCorevGpr<intr # "_b", NAME # "_B">;
+}
+
+multiclass PatCorevBinary <string intr, bit exclude_h = false> {
+  if exclude_h then {
+    def : PatCorevGprGpr<intr # "_b", NAME # "_B">;
+  } else {
+    defm NAME : PatCorevGprGprHB<intr>;
+  }
+  defm NAME # "_SC" : PatCorevGprGprHB<intr # "_sc">;
+  defm NAME # "_SCI" : PatCorevGprImmHB<intr # "_sc">;
+}
+
+multiclass PatCorevBinaryUnsigned <string intr> {
+  defm NAME : PatCorevGprGprHB<intr>;
+  defm NAME # "_SC" : PatCorevGprGprHB<intr # "_sc">;
+  defm NAME # "_SCI" : PatCorevGprUImmHB<intr # "_sc">;
+}
+
+
+let Predicates = [HasExtXcvsimd, IsRV32] in {
+  defm ADD :  PatCorevBinary<"add", true>;
+  def : PatCorevGprGprDiv<int_riscv_cv_simd_add_h, "ADD_H", 1>;
+  defm SUB :  PatCorevBinary<"sub", true>;
+  def : PatCorevGprGprDiv<int_riscv_cv_simd_sub_h, "SUB_H", 1>;
+  defm AVG :  PatCorevBinary<"avg">;
+  defm AVGU : PatCorevBinary<"avgu">;
+  defm MIN :  PatCorevBinary<"min">;
+  defm MINU : PatCorevBinaryUnsigned<"minu">;
+  defm MAX :  PatCorevBinary<"max">;
+  defm MAXU : PatCorevBinaryUnsigned<"maxu">;
+  defm SRL :  PatCorevBinaryUnsigned<"srl">;
+  defm SRA :  PatCorevBinaryUnsigned<"sra">;
+  defm SLL :  PatCorevBinaryUnsigned<"sll">;
+  defm OR :   PatCorevBinary<"or">;
+  defm XOR :  PatCorevBinary<"xor">;
+  defm AND :  PatCorevBinary<"and">;
+
+  defm ABS : PatCorevGprHB<"abs">;
+
+  defm DOTUP :   PatCorevBinary<"dotup">;
+  defm DOTUSP :  PatCorevBinary<"dotusp">;
+  defm DOTSP :   PatCorevBinary<"dotsp">;
+  defm SDOTUP :  PatCorevBinary<"sdotup">;
+  defm SDOTUSP : PatCorevBinary<"sdotusp">;
+  defm SDOTSP :  PatCorevBinary<"sdotsp">;
+
+  defm EXTRACT :  PatCorevGprTImmHB<"extract">;
+  defm EXTRACTU : PatCorevGprTImmHB<"extractu">;
+  def : Pat<(int_riscv_cv_simd_insert_b GPR:$rd, GPR:$rs1, cv_tsimm6:$imm), 
+            (CV_INSERT_B GPR:$rd, GPR:$rs1, cv_tsimm6:$imm)>;
+  def : Pat<(int_riscv_cv_simd_insert_h GPR:$rd, GPR:$rs1, cv_tsimm6:$imm), 
+            (CV_INSERT_H GPR:$rd, GPR:$rs1, cv_tsimm6:$imm)>;
+
+  defm SHUFFLE : PatCorevGprGprHB<"shuffle">;
+  def : PatCorevGprTImm<"shuffle_sci_h", "SHUFFLE_SCI_H">;
+  def : PatCorevGprTImm<"shuffleI0_sci_b", "SHUFFLEI0_SCI_B">;
+  def : PatCorevGprTImm<"shuffleI1_sci_b", "SHUFFLEI1_SCI_B">;
+  def : PatCorevGprTImm<"shuffleI2_sci_b", "SHUFFLEI2_SCI_B">;
+  def : PatCorevGprTImm<"shuffleI3_sci_b", "SHUFFLEI3_SCI_B">;
+  defm SHUFFLE2 : PatCorevGprGprHB<"shuffle2">;
+
+  def : PatCorevGprGpr<"pack", "PACK">;
+  def : PatCorevGprGpr<"pack_h", "PACK_H">;
+  def : Pat<(int_riscv_cv_simd_packhi_b GPR:$rd, GPR:$rs1, GPR:$rs2), 
+            (CV_PACKHI_B GPR:$rd, GPR:$rs1, GPR:$rs2)>;
+  def : Pat<(int_riscv_cv_simd_packlo_b GPR:$rd, GPR:$rs1, GPR:$rs2), 
+            (CV_PACKLO_B GPR:$rd, GPR:$rs1, GPR:$rs2)>;
+
+  defm CMPEQ :  PatCorevBinary<"cmpeq">;
+  defm CMPNE :  PatCorevBinary<"cmpne">;
+  defm CMPGT :  PatCorevBinary<"cmpgt">;
+  defm CMPGE :  PatCorevBinary<"cmpge">;
+  defm CMPLT :  PatCorevBinary<"cmplt">;
+  defm CMPLE :  PatCorevBinary<"cmple">;
+  defm CMPGTU : PatCorevBinary<"cmpgtu">;
+  defm CMPGEU : PatCorevBinary<"cmpgeu">;
+  defm CMPLTU : PatCorevBinary<"cmpltu">;
+  defm CMPLEU : PatCorevBinary<"cmpleu">;
+  
+  def : PatCorevGprGprDiv<int_riscv_cv_simd_cplxmul_r, "CPLXMUL_R", 1>;
+  defm CPLXMUL_R : PatCorevGprGprDivAll2<int_riscv_cv_simd_cplxmul_r>;
+  def : PatCorevGprGprDiv<int_riscv_cv_simd_cplxmul_i, "CPLXMUL_I", 1>;
+  defm CPLXMUL_I : PatCorevGprGprDivAll2<int_riscv_cv_simd_cplxmul_i>;
+
+  def : PatCorevGpr<"cplxconj", "CPLXCONJ">;
+
+  def : PatCorevGprGprDiv<int_riscv_cv_simd_subrotmj, "SUBROTMJ", 1>;
+  defm SUBROTMJ : PatCorevGprGprDivAll2<int_riscv_cv_simd_subrotmj>;
+
+  defm ADD : PatCorevGprGprDivAll2<int_riscv_cv_simd_add_h>;
+  defm SUB : PatCorevGprGprDivAll2<int_riscv_cv_simd_sub_h>;
 }
 
 //===----------------------------------------------------------------------===//
