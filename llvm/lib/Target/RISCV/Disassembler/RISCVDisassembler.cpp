@@ -561,6 +561,8 @@ DecodeStatus RISCVDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
     TRY_TO_DECODE_FEATURE(RISCV::FeatureVendorXCVbitmanip,
                           DecoderTableXCVbitmanip32,
                           "CORE-V Bit Manipulation custom opcode table");
+    TRY_TO_DECODE_FEATURE(RISCV::FeatureVendorXCvsimd, DecoderTableCoreVSIMD32,
+                          "CORE-V SIMD extensions custom opcode table");
     TRY_TO_DECODE(true, DecoderTable32, "RISCV32 table");
 
     return MCDisassembler::Fail;

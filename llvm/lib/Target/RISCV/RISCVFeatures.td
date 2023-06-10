@@ -760,6 +760,14 @@ def HasVendorXCVbitmanip : Predicate<"Subtarget->hasVendorXCVbitmanip()">,
                                 AssemblerPredicate<(all_of FeatureVendorXCVbitmanip),
                                 "'XCVbitmanip' (Bit Manipulation)">;
 
+def FeatureVendorXCvsimd
+    : SubtargetFeature<"xcvsimd", "HasVendorXCvsimd", "true",
+                       "'Xcvsimd' (SIMD ALU)">;
+def HasVendorXCvsimd
+    : Predicate<"Subtarget->hasVendorXCvsimd()">,
+               AssemblerPredicate<(any_of FeatureVendorXCvsimd),
+               "'Xcvsimd' (SIMD ALU)">;
+
 //===----------------------------------------------------------------------===//
 // LLVM specific features and extensions
 //===----------------------------------------------------------------------===//
