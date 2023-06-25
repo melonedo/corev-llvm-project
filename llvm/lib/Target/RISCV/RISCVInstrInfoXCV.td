@@ -180,3 +180,22 @@ let Predicates = [HasVendorXCVmac, IsRV32] in {
   def : InstAlias<"cv.mulu $rd1, $rs1, $rs2",   (CV_MULUN GPR:$rd1,   GPR:$rs1, GPR:$rs2, 0)>;
   def : InstAlias<"cv.mulhhu $rd1, $rs1, $rs2", (CV_MULHHUN GPR:$rd1, GPR:$rs1, GPR:$rs2, 0)>;
 } // Predicates = [HasVendorXCVmac, IsRV32]
+
+class RVInstImmBranch<bits<3> funct3, dag outs, dag ins,
+                      string opcodestr, string argstr>
+    : RVInstB<funct3, OPC_CUSTOM_0, outs, ins, opcodestr, argstr> {
+  bits<5> imm5;
+  let rs2 = imm5;
+  let DecoderNamespace = "XCVbi";
+}
+
+let Predicates = [HasVendorXCVbi, IsRV32], hasSideEffects = 0, mayLoad = 0,
+    mayStore = 0, isBranch = 1, isTerminator = 1 in {
+  // Immediate branching operations
+  def CV_BEQIMM : RVInstImmBranch<0b110, (outs),
+        (ins GPR:$rs1, simm5:$imm5, simm13_lsb0:$imm12),
+        "cv.beqimm", "$rs1, $imm5, $imm12">, Sched<[]>;
+  def CV_BNEIMM : RVInstImmBranch<0b111, (outs),
+        (ins GPR:$rs1, simm5:$imm5, simm13_lsb0:$imm12),
+        "cv.bneimm", "$rs1, $imm5, $imm12">, Sched<[]>;
+}

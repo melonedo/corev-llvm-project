@@ -767,6 +767,13 @@ def HasVendorXCVmac : Predicate<"Subtarget->hasVendorXCVmac()">,
                                 AssemblerPredicate<(all_of FeatureVendorXCVmac),
                                 "'XCVmac' (Multiply-Accumulate)">;
 
+def FeatureVendorXCVbi
+    : SubtargetFeature<"xcvbi", "HasVendorXCVbi", "true",
+                       "'XCVbi' (Immediate Branching)">;
+def HasVendorXCVbi : Predicate<"Subtarget->hasVendorXCVbi()">,
+                                AssemblerPredicate<(all_of FeatureVendorXCVbi),
+                                "'XCVbi' (Immediate Branching)">;
+
 //===----------------------------------------------------------------------===//
 // LLVM specific features and extensions
 //===----------------------------------------------------------------------===//
