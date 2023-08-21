@@ -1986,3 +1986,31 @@ include "RISCVInstrInfoXVentana.td"
 include "RISCVInstrInfoXTHead.td"
 include "RISCVInstrInfoXSf.td"
 include "RISCVInstrInfoXCV.td"
+
+// def simm6 : Operand<XLenVT>, ImmLeaf<XLenVT, [{return isInt<6>(Imm);}]> {
+//   let ParserMatchClass = SImmAsmOperand<6>;
+//   let EncoderMethod = "getImmOpValue";
+//   let DecoderMethod = "decodeSImmOperand<6>";
+//   let OperandType = "OPERAND_SIMM6";
+//   let OperandNamespace = "RISCVOp";
+//   let MCOperandPredicate = [{
+//     int64_t Imm;
+//     if (MCOp.evaluateAsConstantImm(Imm))
+//       return isInt<6>(Imm);
+//     return MCOp.isBareSymbolRef();
+//   }];
+// }
+// def simm5 : Operand<XLenVT>, ImmLeaf<XLenVT, [{return isInt<5>(Imm);}]> {
+//   let ParserMatchClass = SImmAsmOperand<5>;
+//   let EncoderMethod = "getImmOpValue";
+//   let DecoderMethod = "decodeSImmOperand<5>";
+//   let OperandType = "OPERAND_SIMM5";
+//   let OperandNamespace = "RISCVOp";
+//   let MCOperandPredicate = [{
+//     int64_t Imm;
+//     if (MCOp.evaluateAsConstantImm(Imm))
+//       return isInt<5>(Imm);
+//     return MCOp.isBareSymbolRef();
+//   }];
+// }
+// include "RISCVInstrInfoXCV.td"

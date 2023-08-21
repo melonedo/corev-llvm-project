@@ -132,6 +132,9 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
     else
       addRegisterClass(MVT::f64, &RISCV::GPRPF64RegClass);
   }
+  if (Subtarget.hasVendorXCVsimd()) {
+    addRegisterClass(MVT::v4i8, &RISCV::GPRv4i8RegClass);
+  }
 
   static const MVT::SimpleValueType BoolVecVTs[] = {
       MVT::nxv1i1,  MVT::nxv2i1,  MVT::nxv4i1, MVT::nxv8i1,

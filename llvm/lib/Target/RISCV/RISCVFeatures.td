@@ -825,7 +825,7 @@ def HasVendorXCValu : Predicate<"Subtarget->hasVendorXCValu()">,
                                 "'XCValu' (CORE-V ALU Operations)">;
 
 def FeatureVendorXCVsimd
-    : SubtargetFeature<"xcvsimd", "HasVendorXCvsimd", "true",
+    : SubtargetFeature<"xcvsimd", "HasVendorXCVsimd", "true",
                        "'XCVsimd' (CORE-V SIMD ALU)">;
 def HasVendorXCVsimd
     : Predicate<"Subtarget->hasVendorXCVsimd()">,

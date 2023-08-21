@@ -123,7 +123,7 @@ def XLenRI : RegInfoByHwMode<
       [RegInfo<32,32,32>, RegInfo<64,64,64>]>;
 
 class GPRRegisterClass<dag regList>
-    : RegisterClass<"RISCV", [XLenVT, XLenFVT, i32], 32, regList> {
+    : RegisterClass<"RISCV", [XLenVT, XLenFVT, i32, v4i8], 32, regList> {
   let RegInfos = XLenRI;
 }
 
@@ -536,6 +536,7 @@ def VMV0 : RegisterClass<"RISCV", VMaskVTs, 64, (add V0)> {
 let RegInfos = XLenRI in {
 def GPRF16  : RegisterClass<"RISCV", [f16], 16, (add GPR)>;
 def GPRF32  : RegisterClass<"RISCV", [f32], 32, (add GPR)>;
+def GPRv4i8  : RegisterClass<"RISCV", [v4i8], 32, (add GPR)>;
 } // RegInfos = XLenRI
 
 // Dummy zero register for use in the register pair containing X0 (as X1 is

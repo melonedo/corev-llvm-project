@@ -505,3 +505,20 @@ let Predicates = [HasVendorXCVbi, IsRV32], hasSideEffects = 0, mayLoad = 0,
         (ins GPR:$rs1, simm5:$imm5, simm13_lsb0:$imm12),
         "cv.bneimm", "$rs1, $imm5, $imm12">, Sched<[]>;
 }
+
+let Predicates = [HasVendorXCVsimd, IsRV32] in {
+  def : Pat<(v4i8 (bitconvert (i32 GPR:$rs1))), (COPY_TO_REGCLASS GPR:$rs1, GPRv4i8)>;
+  def : Pat<(i32 (bitconvert GPRv4i8:$rs1)), (COPY_TO_REGCLASS GPRv4i8:$rs1, GPR)>;
+  def : Pat<(v4i8 (build_vector (i32 GPR:$rs0), (i32 GPR:$rs1), (i32 GPR:$rs2), (i32 GPR:$rs3))), 
+            (CV_PACKHI_B (CV_PACKLO_B (IMPLICIT_DEF), GPR:$rs0, GPR:$rs1), GPR:$rs2, GPR:$rs3)>;
+  
+  // FIXME: insertelt has an additional impossible constraint
+  def : Pat<(v4i8 (vector_insert (v4i8 GPRv4i8:$rd), (i32 GPR:$rs), uimm5:$index)),
+            (v4i8 (CV_INSERT_B GPR:$rd, GPR:$rs, uimm5:$index))>;
+  def : Pat<(add (v4i8 GPRv4i8:$rs1), (v4i8 GPRv4i8:$rs2)), 
+            (CV_ADD_B GPRv4i8:$rs1, GPRv4i8:$rs2)>;
+  def : Pat<(add (v4i8 GPRv4i8:$rs1), (v4i8 (build_vector uimm6:$imm, uimm6:$imm, uimm6:$imm, uimm6:$imm))), 
+            (CV_ADD_SCI_B GPRv4i8:$rs1, uimm6:$imm)>;
+  def : Pat<(add (v4i8 GPRv4i8:$rs1), (v4i8 (build_vector (i32 GPR:$rs2), (i32 GPR:$rs2), (i32 GPR:$rs2), (i32 GPR:$rs2)))), 
+            (CV_ADD_SC_B GPRv4i8:$rs1, (i32 GPR:$rs2))>;
+}
